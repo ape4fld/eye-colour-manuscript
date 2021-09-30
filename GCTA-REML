@@ -1,0 +1,35 @@
+# Convert the imputed VCF files into binary plink files, filtering out SNPs with INFO < 0.8:
+
+plink2 \
+        --vcf /your-path-to-the-vcf-imputed-files/${chr}.vcf.gz 'dosage=DS' \
+        --exclude-if-info "INFO < 0.8" \
+        --make-bed \
+        --out /your-path-to-save-output/chr${chr}
+
+# then use GCTA to obtain the GRM, one per chromosome:
+
+gcta64 \
+       --bfile chr${chr} \
+       --chr ${chr} \
+       --make-grm \
+       --out grm_chr${chr} \
+       --thread-num 3
+       
+# In this step I merge the GRMs from all chromosomes into one.
+# 'grm_chrs.txt' is a text file containing the name of the GRM for each chromosome, one per row. Check the GCTA-COJO page for details.
+
+gcta64 \
+  --mgrm grm_chrs.txt \
+  --make-grm \
+  --out GRM-all-chrs
+  
+  # run GREML analysis:
+  
+  gcta64 \
+    --reml-bivar 1 2 \
+    --grm GRM-all-chrs \
+    --pheno your-pheno-file.phe \
+    --covar your-covar-file.txt \
+    --qcovar your-quant-covar-file.txt \
+    --out output-name \
+    --thread-num 4
