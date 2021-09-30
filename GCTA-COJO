@@ -1,0 +1,33 @@
+# make bfile:
+
+plink2 \
+        --vcf /your-path-for-VCF-imputed-files/${SLURM_ARRAY_TASK_ID}.vcf.gz 'dosage=DS' \
+        --exclude-if-info "INFO < 0.8" \
+        --make-bed \
+        --out /your-path-to-save-output/${SLURM_ARRAY_TASK_ID}_INFO-0.8
+
+# run GCTA-COJO:
+
+gcta64 \
+  --bfile /your-path-to-the-plink-genotype-files/chr${chr}_INFO-0.8 \
+  --chr ${chr} \
+  --cojo-file /your-path-to-gwas-summary-stats/gwas-pheno.out \
+  --cojo-slct \
+  --cojo-p 5e-8 \
+  --out /your-path-to-save-the-output/chr${chr}-GCTA-COJO
+  
+# process results:
+
+# get a list of the chromosomes for which there is an output:
+ls /your-path-to-COJO-output/chr*-GCTA-COJO.jma.cojo > list-COJO-chrs.txt
+
+# extract the header:
+file1=$(sed -n 1p list-COJO-chrs.txt)
+awk 'NR==1' ${file1} > /your-path-to-COJO-output/pheno-all-chrs.jma.cojo
+
+rows=$(wc -l list-COJO-chrs.txt | awk '{print $1}')
+for ((i=1;i<=$rows;i++))
+do
+  file=$(sed -n ${i}p list-COJO-chrs.txt)
+  awk 'NR>1' ${file} >> /your-path-to-COJO-output/pheno-all-chrs.jma.cojo
+done
