@@ -1,0 +1,44 @@
+# make bfile from VCF file:
+
+plink2 \
+        --vcf /your-path-to-the-vcf-imputed-files/${SLURM_ARRAY_TASK_ID}.vcf.gz 'dosage=DS' \
+        --exclude-if-info "INFO < 0.3" \
+        --make-bed \
+        --out /your-path-to-save-output/chr${SLURM_ARRAY_TASK_ID}
+        
+        plink2 \
+       --vcf /your-path-to-the-genotype-file/genotype.vcf.gz \
+       --make-bed \
+       --out tmp-bfile
+
+# then use GCTA to get the GRM:
+
+gcta64 \
+        --bfile tmp-bfile \
+        --make-grm-gz \
+        --autosome \
+        --thread-num 7 \
+        --out /your-path-to-the-GRM/GRM-cohort
+
+# run GCTA-MLMA:
+
+gcta64 \
+        --bfile /your-path-to-binary-plink-files/chr${chr} \
+        --grm-gz /your-path-to-the-GRM/GRM-cohort \
+        --thread-num 8 \
+        --mlma \
+        --pheno /your-path-to-the-phenotype-file/PHENO-GCTA-MLMA.txt \
+        --qcovar /your-path-to-the-quantitative-covariates/QCOV-GCTA-MLMA.txt \
+        --covar /your-path-to-the-binary-covariates/COV-GCTA-MLMA.txt \
+        --out /your-path-to-save-the-output/chr${chr}-pheno
+
+# Merge all chromosomes:
+
+# get the header:
+awk 'NR==1' /your-path-with-mlma-results/chr1.mlma > pheno-mlma.out
+
+# merge chromosomes:
+for i in {1..22}
+do
+        awk '$9 != "-nan"' /your-path-with-mlma-results/chr${i}.mlma | awk 'NR>1' >> pheno-mlma.out
+done
